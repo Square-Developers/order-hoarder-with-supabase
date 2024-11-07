@@ -32,7 +32,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
                     data,
                 })
             } else {
-                return res.status(error?.status || 400).json({ message: error.code })
+                return res.status(error?.status || 400).json({ error: error.code })
             }
         } catch (e) {
             console.error(e)

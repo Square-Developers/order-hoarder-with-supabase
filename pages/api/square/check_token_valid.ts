@@ -1,9 +1,8 @@
 import { NextApiResponse } from 'next'
 import { NextApiUserRequest } from '../../../types'
-import { getUser } from '../../../lib/database'
-import { decodeJWT, isString, verifyJWT } from '../../../utils/helpers'
-import { getOauthClient } from '../../../utils/square-client'
-import { decryptToken } from '../../../utils/server-helpers'
+import { checkToken } from '../../../utils/server-helpers'
+import createClient from '../../../utils/supabase/api'
+
 (BigInt.prototype as any).toJSON = function () {
     return this.toString()
 }
@@ -11,21 +10,18 @@ import { decryptToken } from '../../../utils/server-helpers'
 // This endpoint solely exists to the Frontend can check if the user's token is still valid
 async function handler(req: NextApiUserRequest, res: NextApiResponse) {
     try {
-        if (!verifyJWT(req)) {
-            return res.status(403).json({ error: 'user has invalid JWT' })
+        const supabase = createClient(req, res)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            return res.status(401).json({ isTokenValid: false })
         }
-        const id = decodeJWT(req)
-        const user = await getUser(id)
-        if (!isString(user?.squareData?.tokens) || !isString(user?.metaData?.iv)) {
-            return res.status(200).json({isValid: false})
+        if (!user?.app_metadata?.squareData?.tokens) {
+            return res.status(200).json({ isTokenValid: false })
         }
+        
+        const result = await checkToken(user?.app_metadata?.squareData?.tokens, user?.app_metadata?.squareData?.iv)
 
-        const { accessToken } = decryptToken(user?.squareData?.tokens, user?.metaData?.iv)
-
-        const oAuthApi = getOauthClient()
-
-        // If this request fails, with 401, we know the token is invalid, and either expired or been revoked
-        const { result } = await oAuthApi.retrieveTokenStatus(`Bearer ${accessToken}`);
+        
         if (result.merchantId) {
             return res.status(200).json({ isValid: true })
         } else {

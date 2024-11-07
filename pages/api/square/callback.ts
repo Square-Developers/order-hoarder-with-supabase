@@ -3,7 +3,7 @@ import { SquareData } from '../../../types'
 import { isString } from '../../../utils/helpers'
 import {getOauthClient} from '../../../utils/oauth-client'
 import createClient from '../../../utils/supabase/api'
-import { encryptToken } from '../../../utils/server-helpers'
+import { encryptToken, saveSupabaseData } from '../../../utils/server-helpers'
 import { SCOPES } from '../../../constants'
 import createAdminClient from '../../../utils/supabase/admin'
 
@@ -86,16 +86,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
             if (!user) {
                 throw new Error("user not found")
             }
-            const adminSupabase = createAdminClient()
-            const { error } = await adminSupabase.auth.admin.updateUserById(
-                user.id,
-                { app_metadata: {
-                    squareData
-                } }
-              )
-              if (error) {
-               console.log('failed to update user: ', error)
-              }
+
+            // Write Square data to supabase
+            await saveSupabaseData({user, squareData})
+
             res.redirect('/dashboard')
         } catch (error) {
             // The response from the Obtain Token endpoint did not include an access token. Something went wrong.

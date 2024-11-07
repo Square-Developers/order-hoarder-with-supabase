@@ -1,63 +1,16 @@
-import crypto, { pbkdf2Sync } from 'crypto'
-import { AppError, BadRequestError, DBUser, DatabaseError, ForbiddenError, InternalServerError, NotFoundError, SquareData, Tokens, UnauthorizedError } from '../types'
-import { SignJWT } from 'jose'
-import { getOauthClient, getUserClient } from './square-client'
-import { updateRefreshTokens } from '../lib/database'
+import crypto from 'crypto'
+import { BadRequestError, DatabaseError, ForbiddenError, InternalServerError, NotFoundError, SquareData, Tokens, UnauthorizedError } from '../types'
+import { getOauthClient } from './square-client'
 import { NextApiResponse } from 'next'
-import { isString } from './helpers'
+import createAdminClient from './supabase/admin'
+import { User } from '@supabase/supabase-js'
 
-export const hashPassword = async (password: string) => {
-    try{
-        const salt = crypto.randomBytes(128).toString('base64')
-        const iterations = 10000
-        const hash = await pbkdf2Sync(password, salt, iterations, 64, 'sha512')
-        return {
-            salt: salt,
-            hash: hash.toString('hex'),
-            iterations: iterations
-        }
-    } catch(e) {
-        console.error('error: ', e)
-        throw new InternalServerError('Error hashing password', 500)
-    }
-}
-
-export const isPasswordCorrect = (savedHash: string, savedSalt: string, passwordAttempt: string) => {
-    return savedHash == pbkdf2Sync(passwordAttempt, savedSalt, 10000, 64, 'sha512').toString('hex')
-}
-
-export const isTokenValid = async (accessToken: string) => {
-    const { locationsApi } = getUserClient(accessToken)
-    try {
-        await locationsApi.listLocations()
-        return true;
-    } catch (e) {
-        return false
-    }
-}
-
-export const createJWT = async (payload: { sub?: string }) => {
-    try{
-        if(!isString(process.env.JWT_SIGNING_SECRET)) {
-            console.error('JWT_SIGNING_SECRET is not set - check .env file')
-            throw new InternalServerError('Server Error', 500)
-        }
-        const secret = process.env.JWT_SIGNING_SECRET || ''
-        const iat = Math.floor(Date.now() / 1000)
-        const exp = iat + 60 * 60 * 24 * 7 // 7 days    
-        return await new SignJWT({ ...payload })
-            .setProtectedHeader({
-                alg: 'HS256',
-                typ: 'JWT'
-            })
-            .setExpirationTime(exp)
-            .setIssuedAt(iat)
-            .setNotBefore(iat)
-            .sign(new TextEncoder().encode(secret))
-    } catch (e) {
-        console.error('error: ', e)
-        throw new InternalServerError('Error creating JWT', 500)
-    }
+export const checkToken = async (tokens: string, iv: string) => {
+    const { accessToken } = decryptToken(tokens, iv)
+    const oAuthApi = getOauthClient()
+    // If this request fails, with 401, we know the token is invalid, and either expired or been revoked
+    const { result } = await oAuthApi.retrieveTokenStatus(`Bearer ${accessToken}`);
+    return result
 }
 
 export const encryptToken = function (tokens: string) {
@@ -119,67 +72,39 @@ export const getAuthUrlValues = () => {
     }
 }
 
-export const refreshTokens = async ({id, tokens, iv}: {
-    id: string,
-    tokens: string,
-    iv: string
+
+export const saveSupabaseData = async ({user, squareData}: {
+    user: User;
+    squareData: SquareData;
 }) => {
-    const { accessToken, refreshToken } = decryptToken(tokens,iv)
-    const { oAuthApi } = getUserClient(accessToken)
-    try {
-        if (!isString(process.env.APP_ID)) {
-            throw new AppError('APP_ID is not set - check .env file')
-        }
-        const { result } = await oAuthApi.obtainToken({
-            clientId: process.env.APP_ID,
-            refreshToken,
-            grantType: 'refresh_token'
-        })
 
-        const content: SquareData = {
-            tokens: JSON.stringify({
-                accessToken: result.accessToken,
-                refreshToken: result.refreshToken
-            }),
-            expiresAt: result.expiresAt,
-            merchantId: result.merchantId
-        }
-
-        await updateRefreshTokens({
-            id,
-            squareData: content
-        })
-    } catch (e) {
-        console.error('error: ', e)
-        throw new InternalServerError('Error refreshing tokens', 500)
+    let newSquareData = {}
+    // case: Deauthorizing the user
+    if (Object.keys(squareData).length === 0) {
+        newSquareData = {}
     }
-}
-
-export const deauthorizeToken = async ({
-    user,
-    revokeOnlyAccessToken,
-    }:{
-        user: any
-        revokeOnlyAccessToken: boolean
-    }) => {
-        try {
-            if (!user?.squareData?.tokens || !user?.metaData?.iv) {
-                throw new Error('User data error')
-            }
-            const { accessToken } = decryptToken(user?.squareData?.tokens, user?.metaData?.iv)
-
-            const properClientSecret = 'Client ' + process.env.APPLICATION_SECRET
-            const oAuthApi = getOauthClient()
-            const { result } = await oAuthApi.revokeToken({
-                clientId: process.env.APP_ID,
-                accessToken,
-                revokeOnlyAccessToken
-            }, properClientSecret)
-            return result
-        } catch (e) {
-            console.error('error: ', e)
-            throw new InternalServerError('Error deauthorizing token', 500)
+    // case: updating the existing squareData
+    else if (user?.app_metadata?.squareData?.tokens) {
+        newSquareData = {
+            ...user?.app_metadata?.squareData, ...squareData
         }
+    // case: first time creating squareData
+    } else {
+        newSquareData = squareData
+    }
+
+    // Create admin client to update app_metadata
+    const supabaseAdmin = createAdminClient()
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(
+        user.id, {
+            app_metadata: {
+                squareData: newSquareData
+            }
+        }
+    )
+    if (error) {
+        throw new Error('Failed to update user: ' + error.message)
+    }
 }
 
 export const errorResponse = (res: NextApiResponse, err: any) => {

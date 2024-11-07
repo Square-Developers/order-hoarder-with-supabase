@@ -1,8 +1,6 @@
 import { NextApiResponse } from 'next'
 import { NextApiUserRequest } from '../../../types'
-import { setCookie } from '../../../utils/cookies'
-import { createJWT, errorResponse, isPasswordCorrect } from '../../../utils/server-helpers'
-import { getUserByUsername } from '../../../lib/database'
+import { errorResponse } from '../../../utils/server-helpers'
 import createClient from '../../../utils/supabase/api'
 
 
@@ -24,7 +22,7 @@ export default function handler(req: NextApiUserRequest, res: NextApiResponse) {
                 password: password,
               })
               if (error) {
-                return res.status(error?.status || 500).json({message: error.code})
+                return res.status(error?.status || 500).json({error: error.code})
               } else {
                 return res.status(200).json({})
               }

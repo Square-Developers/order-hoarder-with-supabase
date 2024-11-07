@@ -1,37 +1,4 @@
-import { NextApiRequest } from 'next'
-import { InternalServerError, NextApiUserRequest } from '../types'
-import { verify } from '../middleware'
 import { NumberFormatOptions } from 'intl'
-
-// validate the users JWT
-export const verifyJWT = async (req: NextApiUserRequest): Promise<boolean> => {
-    if (!isString(process.env.JWT_SIGNING_SECRET)){
-        console.error('JWT_SIGNING_SECRET is not set - check .env file')
-        throw new InternalServerError('Server Error', 500)
-    }
-    const token = req?.cookies?.token
-
-    if (token == undefined) return false
-    try {
-        await verify(token, process.env.JWT_SIGNING_SECRET)
-        return true
-    } catch (e) {
-        return false
-    }
-}
-
-// Read the user's id from the JWT
-export const decodeJWT = (req: NextApiRequest): string => {
-    try {
-        const token = req?.cookies?.token
-        if (token === undefined) return ''
-        const jwt = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString())
-        return jwt.sub
-    } catch (e) {
-        console.error(e)
-        throw new InternalServerError('could not decode JWT', 500)
-    }
-}
 
 /**
  * Helper function to format money into appropriate currency and rounding.

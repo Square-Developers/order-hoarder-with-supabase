@@ -20,6 +20,7 @@ import FloatingLabelInput from '../Inputs/FloatingLabelInput'
 import LayoutExternal from '../Layouts/LayoutExternal'
 import { useRouter } from 'next/router'
 import { validateFormInput } from '../../utils/helpers'
+import { SignUpLoginResponse } from '../../types'
 
 interface LoginSignupProps {
   variation: 'login' | 'signup'
@@ -65,7 +66,6 @@ const useStyles = createStyles(() => ({
 }))
 
 export function LoginSignup({ variation }: LoginSignupProps) {
-
   const { classes } = useStyles()
 
   const [firstName, setFirstName] = useState<string>('')
@@ -96,6 +96,7 @@ export function LoginSignup({ variation }: LoginSignupProps) {
     }
 
     try {
+      // TODO: Make sure this is the correct way of doing things
       await fetchJson('/api/users/authenticate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -146,7 +147,7 @@ export function LoginSignup({ variation }: LoginSignupProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(loginData),
-      })
+      }) as SignUpLoginResponse
 
 
       if (!error) {
@@ -156,7 +157,7 @@ export function LoginSignup({ variation }: LoginSignupProps) {
         setIsLoading(false)
         showNotification({
           title: 'Error',
-          message: error.message,
+          message: error,
           autoClose: 3000,
           color: 'red',
           icon: <X />,
