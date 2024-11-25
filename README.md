@@ -43,12 +43,7 @@ cp .env.example .env
 ```js
 // you can run this command in a node repl to get a good value for the `REACT_AES_KEY` field
 crypto.randomBytes(32).toString('hex').substr(0,32)
-
-// you can run this command as well to create a good value for the `JWT_SIGNING_SECRET`
-crypto.randomBytes(32).toString('hex');
 ```
-
-The sqlite file is in an empty clean state with the Schema already pushed to it from prisma, so you can just run the app
 
 ### Start the development server
 ```bash
@@ -67,14 +62,6 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 #### Refresh Token Strategy
 In the file `pages/api/square/cron_refresh` we defined an endpoint that can be invoked to go and refresh any access tokens that are older than 7 days. This endpoint is invoked once a week by a CRON job.
 
-
-#### Clearing and resetting your local sqlite DB
-
-```
-$ rm prisma/dev-qa.db
-npx prisma generate --schema prisma/schema-sqlite.prisma
-npx prisma db push --schema prisma/schema-sqlite.prisma
-```
 
 #### Running into issues?
 If you are running into problems with the live demo, please reach out on our [discord](https://discord.gg/squaredev)

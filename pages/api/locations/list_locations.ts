@@ -16,11 +16,6 @@ async function handler(req: NextApiUserRequest, res: NextApiResponse) {
     }
         
     const { accessToken } = decryptToken(user?.app_metadata?.squareData?.tokens, user?.app_metadata?.squareData?.iv)
-//     const checkToken = await isTokenValid(accessToken)
-//     if (!checkToken) {
-//         return res.status(200).json({ locations: [],
-// isTokenValid: checkToken })
-//     }
     const { locationsApi } = getUserClient(accessToken)
     try {
         const { result } = await locationsApi.listLocations()
