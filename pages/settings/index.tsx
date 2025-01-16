@@ -9,6 +9,9 @@ import LayoutInternal from '../../components/Layouts/LayoutInternal'
 import TaskList from '../../components/Tasks/TaskList'
 import { OAuthDenied, ConnectToSquare, OAuthComplete, TokenManagement } from '../../components/Tasks/TaskComponents'
 import useSWR from 'swr'
+import { GetServerSidePropsContext } from 'next'
+import { createClient } from '../../utils/supabase/server-props'
+import { User } from '@supabase/supabase-js'
 
 const useStyles = createStyles(() => ({
     header: {
@@ -26,7 +29,7 @@ const useStyles = createStyles(() => ({
     }
 }))
 
-const Settings = () => {
+const Settings = ({ user }:{ user: User }) => {
     const { classes } = useStyles()
     // Handle the modal
     const [opened, setOpened] = useState(false)
@@ -127,7 +130,7 @@ const Settings = () => {
         }
     }
     const { data: { isAuthed, userDeniedSquare } = { isAuthed: null,
-userDeniedSquare: null } } = useSWR('/api/square/retrieve_auth_data') ?? {}
+        userDeniedSquare: null } } = useSWR('/api/square/retrieve_auth_data') ?? {}
     // TODO: this is running on page load if user if not authed
     const { data: { isValid, error } = { isValid: null }, isValidating: isTokenValidating } = useSWR('/api/square/check_token_valid')
 
@@ -137,7 +140,7 @@ userDeniedSquare: null } } = useSWR('/api/square/retrieve_auth_data') ?? {}
         }
         setHasSquareData(isAuthed)
         setDeniedSquare(userDeniedSquare)
-    }, [isAuthed, userDeniedSquare,isValid])
+    }, [ isAuthed, userDeniedSquare, isValid ])
 
 
     const SettingsData = ({ isTokenValidating }: {isTokenValidating: boolean}) => {
@@ -170,7 +173,7 @@ userDeniedSquare: null } } = useSWR('/api/square/retrieve_auth_data') ?? {}
                 </div>
         </>
     } 
-    return <LayoutInternal>
+    return <LayoutInternal user={user}>
         <>
             <Modal
                 opened={opened}
@@ -189,5 +192,26 @@ userDeniedSquare: null } } = useSWR('/api/square/retrieve_auth_data') ?? {}
 
 
 }
+
+export async function getServerSideProps(context: GetServerSidePropsContext) {
+    const supabase = createClient(context)
+  
+    const { data, error } = await supabase.auth.getUser()
+  
+    if (error || !data) {
+      return {
+        redirect: {
+          destination: '/',
+          permanent: false,
+        },
+      }
+    }
+  
+    return {
+      props: {
+        user: data.user,
+      },
+    }
+  }
 
 export default Settings

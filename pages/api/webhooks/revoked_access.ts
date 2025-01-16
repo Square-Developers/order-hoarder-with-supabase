@@ -1,6 +1,5 @@
 
 import { NextApiRequest, NextApiResponse } from 'next'
-import { deleteSquareDataByMerchantId } from '../../../lib/database'
 import { WebhooksHelper } from 'square'
 import { isString } from '../../../utils/helpers'
 
@@ -29,7 +28,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             return res.status(403).json({ error: 'Invalid signature' })
         } else {
             const { merchant_id } = req.body
-            await deleteSquareDataByMerchantId(merchant_id)
+            // await deleteSquareDataByMerchantId(merchant_id)
             return res.status(200).json({ message: 'success' })
         }
     } catch(e) {

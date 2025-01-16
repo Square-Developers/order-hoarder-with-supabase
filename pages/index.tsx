@@ -1,7 +1,8 @@
-import type { NextPage } from 'next'
+import type { GetServerSidePropsContext, NextPage } from 'next'
 import Link from 'next/link'
 import { Button, createStyles, Group, Text } from '@mantine/core'
 import styles from './index.module.css'
+import { createClient } from '../utils/supabase/server-props'
 import { Receipt1 } from '../images/Receipt1'
 import { Receipt2 } from '../images/Receipt2'
 import { Receipt3 } from '../images/Receipt3'
@@ -83,5 +84,25 @@ const Home: NextPage = () => {
     <HeroTitle />
   )
 }
+
+export const getServerSideProps = async (context: GetServerSidePropsContext) => {
+  const supabase = createClient(context)
+	const {
+		data: { user }
+	} = await supabase.auth.getUser();
+  
+  if (user) {
+    return {
+      redirect: {
+        destination: '/dashboard',
+        permanent: false,
+      },
+    }
+  }
+
+	return {
+		props: {}
+	};
+};
 
 export default Home

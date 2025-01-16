@@ -4,7 +4,7 @@ import { isString } from './helpers'
 /**
  * This instance of the Square client is specifically for the OAuth flow.
  * We use this instance to get an access token and a refresh token for our application.
- * When we make calls to square on behalf of an authorized user, we use getUserClienta
+ * When we make calls to square on behalf of an authorized user, we use getUserClient
  */
 export const getOauthClient = () => {
     if (!isString(process.env.ENVIRONMENT)) {
