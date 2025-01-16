@@ -20,9 +20,8 @@ async function handler(req: NextApiUserRequest, res: NextApiResponse) {
         }
         
         const result = await checkToken(user?.app_metadata?.squareData?.tokens, user?.app_metadata?.squareData?.iv)
-
         
-        if (result.merchantId) {
+        if (result?.merchantId) {
             return res.status(200).json({ isValid: true })
         } else {
             return res.status(200).json({ isValid: false })

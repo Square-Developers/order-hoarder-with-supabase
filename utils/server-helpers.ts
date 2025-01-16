@@ -1,16 +1,21 @@
 import crypto from 'crypto'
 import { BadRequestError, DatabaseError, ForbiddenError, InternalServerError, NotFoundError, SquareData, Tokens, UnauthorizedError } from '../types'
-import { getOauthClient } from './square-client'
+import { getOauthClient, getUserClient } from './square-client'
 import { NextApiResponse } from 'next'
 import createAdminClient from './supabase/admin'
 import { User } from '@supabase/supabase-js'
 
 export const checkToken = async (tokens: string, iv: string) => {
     const { accessToken } = decryptToken(tokens, iv)
-    const oAuthApi = getOauthClient()
+    const { oAuthApi } = getUserClient(accessToken)
     // If this request fails, with 401, we know the token is invalid, and either expired or been revoked
-    const { result } = await oAuthApi.retrieveTokenStatus(`Bearer ${accessToken}`);
-    return result
+    try{
+        const { result } = await oAuthApi.retrieveTokenStatus();
+        return result
+    } catch(e) {
+        console.log('error: ', e)
+        return { merchantId: null, statusCode: 401 }
+    }
 }
 
 export const encryptToken = function (tokens: string) {
